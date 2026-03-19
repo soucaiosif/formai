@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FormAI – Completare Formulare</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
+:root{--bg:#faf8f4;--ink:#1a1714;--card:#fff;--border:#e8e2d8;--gold:#c8871a;--gold2:#f0b840;--green:#3d8c5e;--green2:#52b87a;--muted:#8a8070;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;max-width:430px;margin:0 auto;}
+/* ONBOARDING */
+#ob{min-height:100vh;display:flex;flex-direction:column;padding:56px 26px 40px;background:var(--ink);color:#f5f2ed;}
+#ob h1{font-family:'Fraunces',serif;font-size:34px;font-weight:900;line-height:1.1;margin-bottom:10px;}
+#ob h1 em{color:var(--gold);font-style:normal;}
+#ob .desc{font-size:14px;color:rgba(245,242,237,.5);line-height:1.7;margin-bottom:28px;}
+.ob-step{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);}
+.ob-step:last-child{border:none;}
+.ob-n{width:28px;height:28px;border-radius:50%;background:rgba(200,135,26,.2);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0;margin-top:2px;}
+.ob-step h4{font-size:14px;font-weight:600;margin-bottom:2px;}
+.ob-step p{font-size:12px;color:rgba(245,242,237,.4);margin:0;line-height:1.5;}
+.ob-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(245,242,237,.35);display:block;margin-bottom:7px;margin-top:24px;}
+.ob-in{width:100%;padding:15px 18px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:13px;font-family:'DM Sans',sans-serif;font-size:17px;color:#f5f2ed;outline:none;margin-bottom:12px;}
+.ob-in:focus{border-color:var(--gold);}
+.ob-in::placeholder{color:rgba(245,242,237,.2);}
+/* BUTTONS */
+.btn{width:100%;padding:15px;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .18s;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--ink);}
+.btn-gold:active{transform:scale(.97);}
+.btn-dark{background:var(--ink);color:#f5f2ed;}
+.btn-dark:active{transform:scale(.97);}
+.btn-out{background:transparent;border:1.5px solid var(--border);color:var(--ink);}
+.btn+.btn{margin-top:10px;}
+/* APP */
+#app{display:none;}
+.hdr{padding:50px 20px 14px;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(180deg,var(--bg) 80%,transparent);position:sticky;top:0;z-index:40;}
+.hdr-title{font-family:'Fraunces',serif;font-size:26px;font-weight:900;}
+.hdr-title em{color:var(--gold);font-style:normal;}
+.hdr-sub{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.hdr-btn{width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
+.pg{display:none;padding:0 0 90px;}
+.pg.on{display:block;animation:up .3s ease;}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--card);border-top:1px solid var(--border);display:flex;padding:10px 0 22px;z-index:100;box-shadow:0 -4px 20px rgba(26,23,20,.07);}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;background:none;border:none;padding:4px 0;}
+.nb-ico{font-size:22px;}
+.nb-lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.nb.on .nb-lbl{color:var(--gold);}
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border);border-radius:16px;padding:36px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;margin:0 20px;}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;}
+.upload-zone:hover{border-color:var(--gold);background:#fffaf0;}
+.u-ico{font-size:44px;margin-bottom:10px;}
+.upload-zone h3{font-family:'Fraunces',serif;font-size:18px;margin-bottom:6px;}
+.upload-zone p{font-size:13px;color:var(--muted);}
+.fbadges{display:flex;gap:6px;justify-content:center;margin-top:12px;}
+.fbadge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:var(--border);color:var(--muted);}
+/* PDF/IMG VIEWER */
+.pdf-wrap{margin:14px 20px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#f0ece4;}
+.pdf-wrap canvas{width:100%!important;height:auto!important;display:block;}
+.pdf-nav{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px;background:var(--card);border-top:1px solid var(--border);}
+.pdf-nav button{padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;font-weight:600;}
+.pdf-nav button:disabled{opacity:.4;}
+.img-wrap{margin:14px 20px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border);}
+.img-wrap img{width:100%;display:block;}
+.file-bar{padding:11px 15px;display:flex;justify-content:space-between;background:var(--card);font-size:13px;border-top:1px solid var(--border);}
+/* AI LOADER */
+.ai-box{padding:44px 20px;text-align:center;}
+.spinner{width:50px;height:50px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--gold);animation:spin .85s linear infinite;margin:0 auto 18px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ai-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;margin-bottom:6px;}
+.ai-sub{font-size:13px;color:var(--muted);margin-bottom:22px;}
+.ai-steps{text-align:left;}
+.si{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;opacity:.25;transition:opacity .4s;}
+.si.on{opacity:1;color:var(--gold);}
+.si.ok{opacity:1;color:var(--green);}
+.si-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.si.on .si-dot{background:var(--gold);animation:pulse .7s infinite alternate;}
+.si.ok .si-dot{background:var(--green);}
+@keyframes pulse{to{opacity:.2}}
+/* RESULTS */
+.ok-banner{margin:0 20px 14px;padding:14px 16px;background:linear-gradient(135deg,#f0faf5,#fff);border:1px solid #b8e0c8;border-radius:14px;display:flex;gap:12px;align-items:center;}
+.ok-banner h4{font-size:15px;font-weight:700;margin-bottom:2px;}
+.ok-banner p{font-size:12px;color:var(--muted);margin:0;}
+.card{background:var(--card);border-radius:16px;padding:18px;border:1px solid var(--border);box-shadow:0 4px 24px rgba(26,23,20,.10);margin:0 20px 14px;}
+.card-title{font-family:'Fraunces',serif;font-size:16px;font-weight:700;margin-bottom:3px;}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+.f-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.f-row:last-child{border:none;}
+.f-lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);min-width:100px;max-width:120px;flex-shrink:0;padding-top:4px;line-height:1.3;}
+.f-val{flex:1;padding:8px 12px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);position:relative;}
+.f-val.auto{border-color:rgba(61,140,94,.4);background:rgba(61,140,94,.06);}
+.f-val.empty{border-color:rgba(200,135,26,.3);background:rgba(200,135,26,.05);}
+.f-input{width:100%;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;outline:none;color:var(--ink);}
+.f-val.auto .f-input{color:var(--green);}
+.atag{position:absolute;top:-7px;right:8px;background:var(--green);color:#fff;font-size:8px;padding:2px 7px;border-radius:6px;font-weight:700;letter-spacing:1px;}
+/* PROFIL */
+.p-sec{margin:0 20px 16px;}
+.p-sec-title{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.field{margin-bottom:11px;}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.field input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;}
+.field input:focus{border-color:var(--gold);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tip{margin:0 20px 14px;padding:12px 14px;background:rgba(200,135,26,.06);border:1px solid rgba(200,135,26,.2);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.6;display:flex;gap:10px;}
+.err-box{margin:14px 20px;padding:14px 16px;background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.3);border-radius:12px;font-size:13px;color:#c0392b;line-height:1.6;}
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--ink);color:#f5f2ed;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:700;z-index:999;transition:transform .3s;max-width:320px;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+::-webkit-scrollbar{width:0;height:0;}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ONBOARDING -->
+<div id="ob">
+  <div style="font-size:48px;margin-bottom:20px;">🤖</div>
+  <h1>Completare<br><em>Formulare</em><br>cu AI</h1>
+  <p class="desc">Încarci orice formular oficial — AI-ul îl citește și completează exact câmpurile cu datele tale.</p>
+  <div>
+    <div class="ob-step"><div class="ob-n">1</div><div><h4>Completezi profilul o dată</h4><p>Nume, CNP, adresă — salvate pe telefonul tău</p></div></div>
+    <div class="ob-step"><div class="ob-n">2</div><div><h4>Încarci orice formular oficial</h4><p>PDF sau poză — îl vezi direct în aplicație</p></div></div>
+    <div class="ob-step"><div class="ob-n">3</div><div><h4>AI completează exact câmpurile</h4><p>Verifici și descarci PDF gata de tipărit</p></div></div>
+  </div>
+  <span class="ob-lbl">Cum te numești?</span>
+  <input class="ob-in" type="text" id="obName" placeholder="Prenume Nume" autocomplete="name">
+  <button class="btn btn-gold" onclick="startApp()">Începe →</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- FORMULAR -->
+  <div class="pg on" id="pg-formular">
+    <div class="hdr">
+      <div><div class="hdr-sub">Completare automată</div><div class="hdr-title">For<em>mular</em></div></div>
+      <div class="hdr-btn" onclick="resetForm()">↩</div>
+    </div>
+
+    <!-- S1: Upload -->
+    <div id="s1">
+      <div class="upload-zone">
+        <input type="file" id="fileIn" accept="image/*,.pdf,.docx" onchange="onFile(this)">
+        <div class="u-ico">📋</div>
+        <h3>Încarcă formularul</h3>
+        <p>Fă o poză sau alege PDF</p>
+        <div class="fbadges">
+          <span class="fbadge">📷 Poză</span>
+          <span class="fbadge">📄 PDF</span>
+          <span class="fbadge">🖼️ Scanat</span>
+        </div>
+      </div>
+      <div class="tip" style="margin-top:16px;">
+        <div>💡</div>
+        <div>AI-ul <strong style="color:var(--ink)">citește exact formularul</strong> — identifică câmpurile reale și le completează cu datele tale.</div>
+      </div>
+    </div>
+
+    <!-- S2: Preview -->
+    <div id="s2" style="display:none;">
+      <div id="pdfWrap" class="pdf-wrap" style="display:none;">
+        <canvas id="pdfCanvas"></canvas>
+        <div class="pdf-nav">
+          <button id="btnPrev" onclick="pdfPrev()">‹ Înapoi</button>
+          <span id="pdfInfo" style="font-size:12px;color:var(--muted);">1 / 1</span>
+          <button id="btnNext" onclick="pdfNext()">Înainte ›</button>
+        </div>
+      </div>
+      <div id="imgWrap" class="img-wrap" style="display:none;">
+        <img id="imgPrev" src="" alt="formular">
+      </div>
+      <div class="file-bar">
+        <span id="fName" style="font-weight:600;"></span>
+        <span id="fSize" style="color:var(--muted);font-size:11px;"></span>
+      </div>
+      <div style="padding:14px 20px 0;">
+        <button class="btn btn-dark" onclick="runAI()">🤖 Completează cu AI</button>
+        <button class="btn btn-out" onclick="resetForm()" style="margin-top:10px;">↩ Alt formular</button>
+      </div>
+    </div>
+
+    <!-- S3: AI loading -->
+    <div id="s3" style="display:none;">
+      <div class="ai-box">
+        <div class="spinner"></div>
+        <div class="ai-title">AI-ul analizează formularul...</div>
+        <div class="ai-sub" id="aiMsg">Citesc documentul</div>
+        <div class="ai-steps" id="aiList"></div>
+      </div>
+    </div>
+
+    <!-- S4: Results -->
+    <div id="s4" style="display:none;padding-bottom:20px;">
+      <div class="ok-banner">
+        <div style="font-size:24px;">✅</div>
+        <div><h4 id="rTitle">Formular completat!</h4><p id="rSub"></p></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Câmpurile formularului</div>
+        <div class="card-sub">Exact câmpurile găsite — editează dacă e nevoie</div>
+        <div id="fields"></div>
+      </div>
+      <div style="padding:0 20px;">
+        <button class="btn btn-dark" onclick="genPDF()">📥 Descarcă PDF completat</button>
+        <button class="btn btn-out" onclick="resetForm()" style="margin-top:10px;">📋 Alt formular</button>
+      </div>
+    </div>
+
+    <!-- S5: Error -->
+    <div id="s5" style="display:none;">
+      <div class="err-box" id="errMsg"></div>
+      <div style="padding:14px 20px 0;">
+        <button class="btn btn-dark" onclick="runAI()">🔄 Încearcă din nou</button>
+        <button class="btn btn-out" onclick="resetForm()" style="margin-top:10px;">↩ Alt formular</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFIL -->
+  <div class="pg" id="pg-profil">
+    <div class="hdr">
+      <div><div class="hdr-sub">Datele tale</div><div class="hdr-title">Pro<em>fil</em></div></div>
+    </div>
+    <div class="tip"><div>🔒</div><div>Datele rămân <strong style="color:var(--ink)">doar pe telefonul tău</strong>. AI-ul le folosește la completarea automată.</div></div>
+    <div class="p-sec">
+      <div class="p-sec-title">👤 Date personale</div>
+      <div class="field"><label>Nume complet</label><input type="text" id="pNume" placeholder="PRENUME NUME"></div>
+      <div class="frow">
+        <div class="field"><label>CNP</label><input type="text" id="pCNP" placeholder="1234567890123" maxlength="13"></div>
+        <div class="field"><label>Data nașterii</label><input type="text" id="pNastere" placeholder="ZZ.LL.AAAA"></div>
+      </div>
+      <div class="field"><label>Adresă completă</label><input type="text" id="pAdresa" placeholder="Str., Nr., Bl., Ap."></div>
+      <div class="frow">
+        <div class="field"><label>Localitate</label><input type="text" id="pOras" placeholder="Cluj-Napoca"></div>
+        <div class="field"><label>Județ</label><input type="text" id="pJudet" placeholder="Cluj"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>Telefon</label><input type="tel" id="pTel" placeholder="07xx xxx xxx"></div>
+        <div class="field"><label>Email</label><input type="email" id="pEmail" placeholder="email@..."></div>
+      </div>
+      <div class="field"><label>Cetățenie</label><input type="text" id="pCet" value="Română"></div>
+    </div>
+    <div class="p-sec">
+      <div class="p-sec-title">🪪 Permis de conducere</div>
+      <div class="frow">
+        <div class="field"><label>Serie permis</label><input type="text" id="pPermSerie" placeholder="RO..."></div>
+        <div class="field"><label>Categorii</label><input type="text" id="pPermCat" placeholder="B, BE..."></div>
+      </div>
+      <div class="field"><label>Valabil până la</label><input type="text" id="pPermVal" placeholder="ZZ.LL.AAAA"></div>
+    </div>
+    <div class="p-sec">
+      <div class="p-sec-title">🚗 Vehicule</div>
+      <div class="field"><label>Nr. înmatriculare 1</label><input type="text" id="pM1" placeholder="CJ-xx-xxx"></div>
+      <div class="field"><label>Nr. înmatriculare 2</label><input type="text" id="pM2" placeholder="CJ-xx-xxx"></div>
+    </div>
+    <div style="padding:0 20px 20px;"><button class="btn btn-dark" onclick="saveProfile()">💾 Salvează Profilul</button></div>
+  </div>
+
+  <div class="bnav">
+    <button class="nb on" id="nb-f" onclick="showPg('formular',this)"><div class="nb-ico">📝</div><div class="nb-lbl">Formular</div></button>
+    <button class="nb" id="nb-p" onclick="showPg('profil',this)"><div class="nb-ico">👤</div><div class="nb-lbl">Profil</div></button>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const API='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';
+const SERVER='https://formai-server-phmw.onrender.com';
+const FLDS=['pNume','pCNP','pNastere','pAdresa','pOras','pJudet','pTel','pEmail','pCet','pPermSerie','pPermCat','pPermVal','pM1','pM2'];
+let profile={},fileObj=null,campuri=[],pdfDoc=null,pdfPage=1,pdfTotal=1,pageImg=null,docxBase64=null;
+
+function init(){
+  const s=localStorage.getItem('formai_v6');
+  if(s){const d=JSON.parse(s);profile=d.profile||{};if(d.started){show('ob','none');show('app','block');loadFlds();}}
+}
+function startApp(){
+  const n=document.getElementById('obName').value.trim();
+  if(!n){toast('⚠️ Scrie-ți numele');return;}
+  profile.pNume=n;saveLoc();show('ob','none');show('app','block');loadFlds();
+}
+function show(id,d){document.getElementById(id).style.display=d;}
+function saveLoc(){localStorage.setItem('formai_v6',JSON.stringify({started:true,profile}));}
+function saveProfile(){FLDS.forEach(f=>{const e=document.getElementById(f);if(e)profile[f]=e.value.trim();});saveLoc();toast('✅ Profil salvat!');}
+function loadFlds(){FLDS.forEach(f=>{const e=document.getElementById(f);if(e&&profile[f])e.value=profile[f];});}
+function showPg(n,b){document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+n).classList.add('on');document.querySelectorAll('.nb').forEach(x=>x.classList.remove('on'));b.classList.add('on');}
+function step(n){for(let i=1;i<=5;i++)document.getElementById('s'+i).style.display=i===n?'block':'none';}
+
+function onFile(input){
+  const file=input.files[0];if(!file)return;
+  fileObj=file;
+  document.getElementById('fName').textContent=file.name;
+  document.getElementById('fSize').textContent=(file.size/1024).toFixed(0)+' KB';
+  const r=new FileReader();
+  r.onload=async e=>{
+    const data=e.target.result;
+    const isDocx=file.name.endsWith('.docx')||file.type.includes('wordprocessingml');
+    if(isDocx){
+      // DOCX - trimitem direct la server
+      docxBase64=data.split(',')[1];
+      pageImg='docx'; // flag
+      show('pdfWrap','none');show('imgWrap','block');
+      document.getElementById('imgPrev').src='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect fill="%23f0f4ff" width="200" height="200"/><text x="100" y="90" font-size="48" text-anchor="middle">📄</text><text x="100" y="130" font-size="16" text-anchor="middle" fill="%23666">'+encodeURIComponent(file.name)+'</text></svg>';
+      step(2);
+    } else if(file.type==='application/pdf'){
+      docxBase64=null;
+      await loadPDF(data);
+      step(2);
+    } else {
+      docxBase64=null;
+      show('pdfWrap','none');show('imgWrap','block');
+      document.getElementById('imgPrev').src=data;
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=1200;
+        let w=img.width,h=img.height;
+        if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        const c=document.createElement('canvas');
+        c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        let q=0.75,d=c.toDataURL('image/jpeg',q).split(',')[1];
+        while(d.length>3800000&&q>0.3){q-=0.1;d=c.toDataURL('image/jpeg',q).split(',')[1];}
+        pageImg=d;
+        step(2);
+      };
+      img.src=data;
+    }
+  };
+  r.readAsDataURL(file);
+}
+
+async function loadPDF(dataUrl){
+  const bin=atob(dataUrl.split(',')[1]);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;
+  pdfTotal=pdfDoc.numPages;pdfPage=1;
+  show('pdfWrap','block');show('imgWrap','none');
+  await renderPage(1);
+}
+
+async function renderPage(n){
+  const page=await pdfDoc.getPage(n);
+  const vp=page.getViewport({scale:1.5});
+  const canvas=document.getElementById('pdfCanvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=vp.width;canvas.height=vp.height;
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  document.getElementById('pdfInfo').textContent=n+' / '+pdfTotal;
+  document.getElementById('btnPrev').disabled=n<=1;
+  document.getElementById('btnNext').disabled=n>=pdfTotal;
+  pageImg=compressImg(canvas);
+}
+
+function compressImg(source){
+  // Resize to max 1200px wide, compress to stay under 4MB
+  const MAX=1200;
+  let w=source.width, h=source.height;
+  if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+  const c=document.createElement('canvas');
+  c.width=w;c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.drawImage(source,0,0,w,h);
+  // Try quality 0.7 first, lower if still too big
+  let q=0.7, data=c.toDataURL('image/jpeg',q).split(',')[1];
+  while(data.length>3900000 && q>0.3){q-=0.1;data=c.toDataURL('image/jpeg',q).split(',')[1];}
+  return data;
+}
+
+async function pdfPrev(){if(pdfPage>1){pdfPage--;await renderPage(pdfPage);}}
+async function pdfNext(){if(pdfPage<pdfTotal){pdfPage++;await renderPage(pdfPage);}}
+
+async function runAI_DOCX(){
+  step(3);
+  const steps=['Trimit formularul la server','Server procesează DOCX-ul','AI completează câmpurile','Generez PDF-ul final'];
+  document.getElementById('aiList').innerHTML=steps.map((s,i)=>
+    `<div class="si ${i===0?'on':''}" id="si${i}"><div class="si-dot" id="sd${i}"></div>${s}</div>`
+  ).join('');
+  let si=0;
+  const anim=setInterval(()=>{
+    document.getElementById('si'+si).className='si ok';
+    document.getElementById('sd'+si).style.background='var(--green)';
+    si++;
+    if(si<steps.length){document.getElementById('si'+si).className='si on';document.getElementById('aiMsg').textContent=steps[si];}
+    else clearInterval(anim);
+  },2000);
+  try{
+    const p=profile;
+    const res=await fetch(SERVER+'/process',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        file:docxBase64,
+        fileType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        fileName:fileObj.name,
+        profile:{
+          nume:p.pNume||'',cnp:p.pCNP||'',nastere:p.pNastere||'',
+          adresa:p.pAdresa||'',oras:p.pOras||'',judet:p.pJudet||'',
+          tel:p.pTel||'',email:p.pEmail||'',cet:p.pCet||'Română',
+          permSerie:p.pPermSerie||'',permCat:p.pPermCat||'',permVal:p.pPermVal||'',
+          m1:p.pM1||'',m2:p.pM2||''
+        }
+      })
+    });
+    clearInterval(anim);
+    steps.forEach((_,i)=>{document.getElementById('si'+i).className='si ok';document.getElementById('sd'+i).style.background='var(--green)';});
+    await new Promise(r=>setTimeout(r,400));
+    // If response is PDF - download directly
+    const ct=res.headers.get('content-type')||'';
+    if(ct.includes('pdf')){
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download=fileObj.name.replace('.docx','_completat.pdf');
+      a.click();URL.revokeObjectURL(url);
+      toast('✅ PDF descărcat!');
+      step(1);
+    } else {
+      const data=await res.json();
+      if(data.error)throw new Error(data.error);
+      if(data.data)showResults(data.data);
+    }
+  }catch(e){
+    clearInterval(anim);
+    step(5);
+    document.getElementById('errMsg').innerHTML=`<strong>❌ Eroare:</strong> ${e.message}<br><br>Serverul poate fi offline (pornire ~50s). Încearcă din nou.`;
+  }
+}
+
+function resetForm(){
+  fileObj=null;campuri=[];pdfDoc=null;pageImg=null;
+  document.getElementById('fileIn').value='';
+  show('pdfWrap','none');show('imgWrap','none');
+  step(1);
+}
+
+async function runAI(){
+  if(!pageImg){toast('⚠️ Niciun formular încărcat');return;}
+  // If DOCX - send to server
+  if(docxBase64){
+    await runAI_DOCX();
+    return;
+  }
+  step(3);
+  const steps=['Citesc formularul','Identific câmpurile exacte','Înțeleg ce date se cer','Completez cu datele tale'];
+  document.getElementById('aiList').innerHTML=steps.map((s,i)=>
+    `<div class="si ${i===0?'on':''}" id="si${i}"><div class="si-dot" id="sd${i}"></div>${s}</div>`
+  ).join('');
+
+  const p=profile;
+  const prompt=`Ești expert în formulare oficiale românești.
+
+DATE UTILIZATOR DISPONIBILE:
+- Nume complet: ${p.pNume||''}
+- CNP: ${p.pCNP||''}
+- Data nașterii: ${p.pNastere||''}
+- Adresă: ${p.pAdresa||''}
+- Localitate: ${p.pOras||''}
+- Județ: ${p.pJudet||''}
+- Telefon: ${p.pTel||''}
+- Email: ${p.pEmail||''}
+- Cetățenie: ${p.pCet||'Română'}
+- Serie permis conducere: ${p.pPermSerie||''}
+- Categorii permis: ${p.pPermCat||''}
+- Permis valabil până: ${p.pPermVal||''}
+- Mașina 1: ${p.pM1||''}
+- Mașina 2: ${p.pM2||''}
+- Data de azi: ${new Date().toLocaleDateString('ro-RO')}
+
+SARCINA TA:
+1. Citește cu atenție imaginea formularului
+2. Identifică TITLUL exact al formularului
+3. Găsește FIECARE câmp de completat (linii de puncte, spații goale, căsuțe, etc.)
+4. Preia EXACT eticheta câmpului așa cum apare în formular
+5. Completează valoarea NUMAI dacă ai datele utilizatorului care se potrivesc
+6. Lasă gol ("") dacă nu ai informația cerută
+7. NU inventa câmpuri care nu există în formular
+8. NU omite câmpuri din formular
+9. Păstrează ordinea câmpurilor din formular
+
+RĂSPUNDE STRICT ÎN FORMAT JSON (fără alt text):
+{"titlu":"titlul exact al formularului","campuri":[{"eticheta":"eticheta exactă din formular","valoare":"valoarea completată sau gol","auto":true}]}`;
+
+  let si=0;
+  const anim=setInterval(()=>{
+    document.getElementById('si'+si).className='si ok';
+    document.getElementById('sd'+si).style.background='var(--green)';
+    si++;
+    if(si<steps.length){
+      document.getElementById('si'+si).className='si on';
+      document.getElementById('aiMsg').textContent=steps[si];
+    } else clearInterval(anim);
+  },1400);
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':API,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-opus-4-5',
+        max_tokens:2000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:pageImg}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+
+    clearInterval(anim);
+    steps.forEach((_,i)=>{
+      document.getElementById('si'+i).className='si ok';
+      document.getElementById('sd'+i).style.background='var(--green)';
+    });
+    await new Promise(r=>setTimeout(r,500));
+
+    if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Eroare API '+res.status);}
+    const data=await res.json();
+    const txt=data.content?.[0]?.text||'';
+    const m=txt.match(/\{[\s\S]*\}/);
+    if(!m)throw new Error('Răspuns invalid de la AI');
+    showResults(JSON.parse(m[0]));
+
+  }catch(e){
+    clearInterval(anim);
+    step(5);
+    document.getElementById('errMsg').innerHTML=
+      `<strong>❌ Eroare:</strong> ${e.message}<br><br>Verifică conexiunea la internet și încearcă din nou.`;
+  }
+}
+
+function showResults(parsed){
+  campuri=parsed.campuri||[];
+  const autoN=campuri.filter(c=>c.auto&&c.valoare).length;
+  document.getElementById('rTitle').textContent=parsed.titlu||'Formular completat';
+  document.getElementById('rSub').textContent=`${autoN} din ${campuri.length} câmpuri completate automat`;
+  document.getElementById('fields').innerHTML=campuri.map((c,i)=>`
+    <div class="f-row">
+      <div class="f-lbl">${c.eticheta}</div>
+      <div class="f-val ${c.auto&&c.valoare?'auto':!c.valoare?'empty':''}" id="fv${i}">
+        ${c.auto&&c.valoare?'<div class="atag">AUTO</div>':''}
+        <input class="f-input"
+          value="${(c.valoare||'').replace(/"/g,'&quot;')}"
+          placeholder="${!c.valoare?'De completat...':''}"
+          onchange="campuri[${i}].valoare=this.value;campuri[${i}].auto=false;
+            document.getElementById('fv${i}').className='f-val'+(this.value?'':' empty');">
+      </div>
+    </div>`).join('');
+  step(4);
+}
+
+function genPDF(){
+  if(!campuri.length){toast('⚠️ Nu există câmpuri');return;}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const title=(document.getElementById('rTitle').textContent||'FORMULAR').toUpperCase();
+  doc.setFillColor(26,23,20);doc.rect(0,0,210,38,'F');
+  doc.setTextColor(245,242,237);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text(title,14,16);
+  doc.setFontSize(9);doc.setTextColor(200,135,26);
+  doc.text(document.getElementById('rSub').textContent,14,25);
+  doc.setFontSize(8);doc.setTextColor(140,130,110);
+  doc.text((profile.pNume||'')+'   ·   '+new Date().toLocaleDateString('ro-RO'),14,32);
+  doc.setDrawColor(200,135,26);doc.setLineWidth(0.6);doc.line(0,38,210,38);
+  let y=50;
+  campuri.forEach(c=>{
+    if(y>272){doc.addPage();y=20;}
+    doc.setFontSize(8);doc.setTextColor(130,120,105);doc.setFont('helvetica','normal');
+    doc.text(c.eticheta.toUpperCase(),14,y);y+=4;
+    const has=c.valoare?.trim();
+    doc.setFillColor(has?240:255,has?250:250,has?244:242);
+    doc.setDrawColor(has?61:200,has?140:135,has?94:26);
+    doc.setLineWidth(0.35);doc.roundedRect(14,y-1,182,9,1.5,1.5,'FD');
+    if(has){
+      doc.setTextColor(40,110,70);doc.setFont('helvetica','bold');doc.setFontSize(10);
+      doc.text(doc.splitTextToSize(c.valoare,165)[0],17,y+5.5);
+      if(c.auto){
+        doc.setFillColor(61,140,94);doc.roundedRect(178,y+1.5,16,4.5,1,1,'F');
+        doc.setTextColor(255,255,255);doc.setFontSize(6);doc.text('AUTO',179.5,y+5);
+      }
+    }else{
+      doc.setTextColor(180,160,120);doc.setFont('helvetica','italic');doc.setFontSize(9);
+      doc.text('— de completat manual —',17,y+5.5);
+    }
+    y+=13;
+  });
+  doc.setFontSize(7);doc.setTextColor(160,150,135);doc.setFont('helvetica','normal');
+  doc.text('Generat cu FormAI · '+new Date().toLocaleDateString('ro-RO'),14,290);
+  doc.save('formular_'+(profile.pNume||'completat').replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+  toast('✅ PDF descărcat!');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+init();
+</script>
+</body>
+</html>
